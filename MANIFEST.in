@@ -1,0 +1,2 @@
+include paisley/test/test.changes
+include paisley/test/test.ini.template

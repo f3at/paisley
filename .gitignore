@@ -2,3 +2,6 @@
 build
 _trial_temp
 PKG-INFO
+dist/
+build/
+paisley.egg-info/
