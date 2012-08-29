@@ -13,7 +13,7 @@ from paisley import pjson as json
 import codecs
 import logging
 import new
-            
+
 from StringIO import StringIO
 from urllib import urlencode, quote
 from zope.interface import implements
@@ -91,20 +91,20 @@ class ResponseReceiver(Protocol):
     """
     Assembles HTTP response from return stream.
     """
-    
+
     def __init__(self, deferred):
         self.writer = codecs.getwriter("utf_8")(StringIO())
         self.deferred = deferred
-    
+
     def dataReceived(self, bytes):
         self.writer.write(bytes)
-    
+
     def connectionLost(self, reason):
         if reason.check(ResponseDone) or reason.check(PotentialDataLoss):
             self.deferred.callback(self.writer.getvalue())
         else:
             self.deferred.errback(reason)
-    
+
 
 class CouchDB(object):
     """
@@ -133,7 +133,7 @@ class CouchDB(object):
         self.url_template = "http://%s:%s%%s" % (self.host, self.port)
         if dbName is not None:
             self.bindToDB(dbName)
-        
+
         if disable_log:
             # since this is the db layer, and we generate a lot of logs,
             # let people disable them completely if they want to.
@@ -149,10 +149,10 @@ class CouchDB(object):
             self.log = logging.getLogger('paisley')
 
 
-        self.log.debug("[%s%s:%s/%s] init new db client", 
+        self.log.debug("[%s%s:%s/%s] init new db client",
                        '%s@' % (username,) if username else '',
-                       host, 
-                       port, 
+                       host,
+                       port,
                        dbName if dbName else '')
 
 
@@ -374,11 +374,11 @@ class CouchDB(object):
         """
         Open a view of a document in a given database.
         """
-        # Responses: 
+        # Responses:
         # 500 Internal Server Error (illegal database name)
         def buildUri(dbName=dbName, docId=docId, viewId=viewId, kwargs=kwargs):
             return "/%s/_design/%s/_view/%s?%s" % (
-                dbName, quote(docId), viewId, urlencode(kwargs))            
+                dbName, quote(docId), viewId, urlencode(kwargs))
 
         for k, v in kwargs.iteritems():
             kwargs[k] = json.dumps(v) #couchdb requires this
@@ -387,7 +387,7 @@ class CouchDB(object):
             body = {"keys": kwargs.pop("keys")}
             return self.post(buildUri(), body=body, descr='openView')
         else:
-            return self.get(buildUri(), descr='openView').addCallback(self.parseResult)        
+            return self.get(buildUri(), descr='openView').addCallback(self.parseResult)
 
 
     def addViews(self, document, views):
@@ -419,12 +419,12 @@ class CouchDB(object):
         """
         C{getPage}-like.
         """
-        
+
         def cb_recv_resp(response):
             d_resp_recvd = Deferred()
             response.deliverBody(ResponseReceiver(d_resp_recvd))
             return d_resp_recvd.addCallback(cb_process_resp, response)
-        
+
         def cb_process_resp(body, response):
             # Emulate HTTPClientFactory and raise t.w.e.Error
             # and PageRedirect if we have errors.
@@ -432,64 +432,66 @@ class CouchDB(object):
                 raise tw_error.PageRedirect(response.code, body)
             elif response.code > 399:
                 raise tw_error.Error(response.code, body)
-            
+
             return body
-        
+
         uurl = unicode(self.url_template % (uri, ))
         url = uurl.encode('utf-8')
-        
+
         if not kwargs.has_key("headers"):
             kwargs["headers"] = {}
-        
-        kwargs["headers"]["Accept"] = ["application/json"]
-        kwargs["headers"]["Content-Type"] = ["application/json"]
-        
+
+        if 'Accept' not in kwargs["headers"]:
+            kwargs["headers"]["Accept"] = ["application/json"]
+        if "Content-Type" not in kwargs["headers"]:
+            kwargs["headers"]["Content-Type"] = ["application/json"]
+
         if not kwargs.has_key("method"):
             kwargs["method"] == "GET"
-        
+
         if self.username:
             kwargs["headers"]["Authorization"] = ["Basic %s" % b64encode("%s:%s" % (self.username, self.password))]
-        
+
         if kwargs.has_key("postdata"):
             body = StringProducer(kwargs["postdata"])
         else:
             body = None
-        
+
         d = self.client.request(kwargs["method"],
                                 url,
                                 Headers(kwargs["headers"]),
                                 body)
-        
+
         d.addCallback(cb_recv_resp)
-        
+
         return d
 
 
-    def get(self, uri, descr=''):
+    def get(self, uri, descr='', headers=dict()):
         """
         Execute a C{GET} at C{uri}.
         """
         self.log.debug("[%s:%s%s] GET %s",
                        self.host, self.port, short_print(uri), descr)
-        return self._getPage(uri, method="GET")
+        return self._getPage(uri, method="GET", headers=headers)
 
 
-    def post(self, uri, body, descr=''):
+    def post(self, uri, body, descr='', headers=dict()):
         """
         Execute a C{POST} of C{body} at C{uri}.
         """
         self.log.debug("[%s:%s%s] POST %s: %s",
                       self.host, self.port, short_print(uri), descr, short_print(repr(body)))
-        return self._getPage(uri, method="POST", postdata=body)
+        return self._getPage(uri, method="POST", postdata=body, headers=headers)
 
 
-    def put(self, uri, body, descr=''):
+    def put(self, uri, body, descr='', headers=dict()):
         """
         Execute a C{PUT} of C{body} at C{uri}.
         """
         self.log.debug("[%s:%s%s] PUT %s: %s",
                        self.host, self.port, short_print(uri), descr, short_print(repr(body)))
-        return self._getPage(uri, method="PUT", postdata=body)
+        return self._getPage(uri, method="PUT", postdata=body, headers=headers)
 
 
     def delete(self, uri, descr=''):
