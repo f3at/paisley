@@ -377,12 +377,14 @@ class CouchDB(object):
         # Responses:
         # 500 Internal Server Error (illegal database name)
         def buildUri(dbName=dbName, docId=docId, viewId=viewId, kwargs=kwargs):
-            return "/%s/_design/%s/_view/%s?%s" % (
-                dbName, quote(docId), viewId, urlencode(kwargs))
+            result = "/%s/_design/%s/_view/%s" % (dbName, quote(docId), viewId)
+            if kwargs:
+                result += '?' + urlencode(kwargs)
+            return result
 
         if "keys" in kwargs:
             body = json.dumps(kwargs)
-            d = self.post(buildUri(), body=body, descr='openView')
+            d = self.post(buildUri(kwargs=None), body=body, descr='openView')
             d.addCallback(self.parseResult)
             return d
         else:
