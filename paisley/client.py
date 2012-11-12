@@ -379,18 +379,19 @@ class CouchDB(object):
         def buildUri(dbName=dbName, docId=docId, viewId=viewId, kwargs=kwargs):
             result = "/%s/_design/%s/_view/%s" % (dbName, quote(docId), viewId)
             if kwargs:
-                result += '?' + urlencode(kwargs)
+                encoded = urlencode(dict((k, json.dumps(v))
+                                          for k, v in kwargs.iteritems()))
+                result += '?' + encoded
             return result
 
         if "keys" in kwargs:
-            body = json.dumps(kwargs)
-            d = self.post(buildUri(kwargs=None), body=body, descr='openView')
-            d.addCallback(self.parseResult)
-            return d
+            kwargs = dict(kwargs)
+            body = json.dumps({"keys": kwargs.pop("keys")})
+            d = self.post(buildUri(kwargs=kwargs), body=body, descr='openView')
         else:
-            for k, v in kwargs.iteritems():
-                kwargs[k] = json.dumps(v) #couchdb requires this
-            return self.get(buildUri(), descr='openView').addCallback(self.parseResult)
+            d = self.get(buildUri(), descr='openView')
+        d.addCallback(self.parseResult)
+        return d
 
 
     def addViews(self, document, views):
