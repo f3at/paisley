@@ -10,7 +10,6 @@ CouchDB client.
 
 from paisley import pjson as json
 
-import codecs
 import logging
 import new
 
@@ -93,7 +92,7 @@ class ResponseReceiver(Protocol):
     """
 
     def __init__(self, deferred):
-        self.writer = codecs.getwriter("utf_8")(StringIO())
+        self.writer = StringIO()
         self.deferred = deferred
 
     def dataReceived(self, bytes):
